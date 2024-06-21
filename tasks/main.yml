@@ -1,0 +1,25 @@
+---
+
+- block: #=====Block for ubuntu-22=====
+
+    - name: Install common dependencies
+      ansible.builtin.apt:
+        name: "{{item}}"
+        state: present
+        update_cache: true
+      loop:
+        - software-properties-common
+        - gnupg2
+        - lsb-release
+        - curl
+        - ca-certificates
+        - gnupg-agent
+
+    - import_tasks: psql.yml
+
+    - import_tasks: pdns.yml
+
+    - import_tasks: web_ui.yml
+      when: ansible_host == 'powerdns-master-01'
+
+  when: ansible_distribution_release == 'jammy'

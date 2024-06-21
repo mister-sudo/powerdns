@@ -1,0 +1,58 @@
+# Postgresql
+postgresql_apt_key_url: https://www.postgresql.org/media/keys/ACCC4CF8.asc
+postgresql_apt_repository: deb http://apt.postgresql.org/pub/repos/apt/ {{ ansible_distribution_release }}-pgdg main
+postgresql_version: 15
+postgresql_datadir: '/var/lib/postgresql/{{ postgresql_version }}/main'
+postgresql_confdir: '/etc/postgresql/{{ postgresql_version }}/main'
+
+postgresql_config: []
+  # Общие настройки
+  # listen_addresses: "'*'"
+  # max_connections: 250
+  # wal_buffers: 16MB
+  # default_statistics_target: 300
+  # random_page_cost: 1.1
+  # effective_io_concurrency: 200
+  # min_wal_size: 1GB
+  # max_wal_size: 2GB
+  # max_parallel_workers_per_gather: 2
+  # max_standby_archive_delay: "'20min'"
+  # max_standby_streaming_delay: "'20min'"
+  # track_activity_query_size: '2048'
+  # track_io_timing: 'on'
+  
+  # Это необходимо для авторитативного сервера
+  # wal_level: replica
+  # max_wal_senders: 4
+  # max_replication_slots: 4
+  # hot_standby: on
+  # hot_standby_feedback: on
+
+postgresql_hba_records:
+  - { type: host, user: all, address: all, database: all, method: md5 }
+  - { type: host, user: postgres, address: all, database: replication, method: md5 }
+
+postgresql_password: ''
+
+postgresql_extensions: []
+#  - name: pg_trgm
+#    database: template1
+#    cascade: true
+
+postgresql_databases:
+  - name: "{{ pdns.db_name }}"
+    owner_name: "{{ pdns.db_user }}"
+    owner_password: "{{ pdns.db_pass }}"
+    encoding: UTF-8
+    
+postgresql_additional_packages: []
+
+# Powerdns
+pdns:
+  db_name: pdns
+  db_user: pdnsadmin
+  db_pass: ''
+  ui_secret: ''
+  master_lan_ip: ''
+  api_key: ''
+  forward_zone: ''

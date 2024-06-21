@@ -1,0 +1,14 @@
+---
+# Postgresql
+# Пример
+postgresql_password: 12345678
+
+# Powerdns
+pdns: # Пример
+  db_name: pdns
+  db_user: pdnsadmin
+  db_pass: 12345678
+  ui_secret: '3EGqn9HdYFZL08Qt7ev0LAAF3k84ehE6'
+  master_lan_ip: 172.16.0.3
+  api_key: 'qjYJPmkKaasUIXH4c6cERel3zjbGl06U'
+  forward_zone: core.example.com=127.0.0.1:5353,16.172.in-addr.arpa=127.0.0.1:5353, service.consul=172.16.1.101:8600;172.16.1.102:8600;172.16.1.103:8600

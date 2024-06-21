@@ -1,0 +1,16 @@
+---
+all:
+  vars:
+    ansible_python_interpreter: /usr/bin/python3 
+  children:
+   
+    powerdns:
+      children:
+      
+        powerdns-master:
+          hosts:
+            powerdns-master-01:
+
+        powerdns-recursor:
+          hosts:
+            powerdns-recursor-01:

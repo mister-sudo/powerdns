@@ -1,0 +1,82 @@
+---
+
+- name: Stop & disable service systemd-resolved
+  ansible.builtin.systemd_service:
+    name: systemd-resolved
+    state: stopped
+    enabled: false
+
+- name: Add apt key powerdns
+  ansible.builtin.apt_key:
+    url: https://repo.powerdns.com/FD380FBB-pub.asc
+    keyring: /etc/apt/trusted.gpg.d/pdns_stable.gpg
+    state: present
+
+- name: Add repository for authoritative
+  apt_repository:
+    repo: deb [arch=amd64] http://repo.powerdns.com/ubuntu {{ ansible_distribution_release }}-auth-48 main
+    state: present
+
+- name: Add repository for recursor
+  apt_repository:
+    repo: deb [arch=amd64] http://repo.powerdns.com/ubuntu {{ ansible_distribution_release }}-rec-48 main
+    state: present
+  when: ansible_host != 'powerdns-master-01'
+
+- name: Install dns authoritative
+  ansible.builtin.apt:
+    name: "{{item}}"
+    state: present
+    update_cache: true
+    force: yes
+  loop:
+    - pdns-backend-pgsql
+    - pdns-server 
+
+- name: Install dns recursor
+  ansible.builtin.apt:
+    name: pdns-recursor
+    state: present
+    update_cache: true
+    force: yes
+  when: ansible_host != 'powerdns-master-01'
+
+- name: Change dump file permission
+  file:
+    path: /usr/share/pdns-backend-pgsql/schema/schema.pgsql.sql
+    owner: postgres
+    group: postgres
+  when: ansible_host == 'powerdns-master-01'
+
+- name: DB schema
+  become_user: postgres
+  shell: "{{item}}"
+  loop:
+    - psql postgresql://{{ pdns.db_user }}:{{ pdns.db_pass }}@localhost:5432/{{ pdns.db_name }} < /usr/share/pdns-backend-pgsql/schema/schema.pgsql.sql
+    - touch ~/db_schema
+  args:
+    creates: ~/db_schema
+  when: ansible_host == 'powerdns-master-01'
+
+- name: Authoritative conf
+  template:
+    src: pdns.conf.j2
+    dest: /etc/powerdns/pdns.conf
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Restart pdns service
+
+- meta: flush_handlers
+
+- name: Recursor conf
+  template:
+    src: recursor.conf.j2
+    dest: /etc/powerdns/recursor.conf
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Restart pdns-recursor service
+  when: ansible_host != 'powerdns-master-01'
+
+- meta: flush_handlers

@@ -1,0 +1,13 @@
+---
+
+- name: Reload postgresql service
+  service: name=postgresql state=reloaded
+
+- name: Restart postgresql service
+  service: name=postgresql state=restarted
+
+- name: Restart pdns service
+  service: name=pdns state=restarted
+
+- name: Restart pdns-recursor service
+  service: name=pdns-recursor state=restarted

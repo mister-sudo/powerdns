@@ -1,0 +1,54 @@
+---
+
+- name: Add Docker GPG apt Key
+  become: true
+  apt_key:
+    url: https://download.docker.com/linux/ubuntu/gpg
+    state: present
+
+- name: Add Docker Repository
+  become: true
+  apt_repository:
+    repo: deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable
+    state: present
+
+- name: Install docker & docker-compose
+  ansible.builtin.apt:
+    name: "{{item}}"
+    state: present
+    update_cache: true
+    force: yes
+  loop:
+    - docker-ce=5:26.1.*
+    - docker-compose=1.29.*
+
+- name: Start service docker
+  ansible.builtin.service:
+    name: docker
+    state: started
+    enabled: yes
+
+- name: Add user deploy
+  user:
+    name: deploy
+    group: docker
+
+- name: Start web ui
+  community.docker.docker_compose:
+    project_name: powerdns_ui
+    definition:
+
+        ui:
+          image: powerdnsadmin/pda-legacy:v0.4.2
+          container_name: powerdns_admin
+          ports:
+            - "9191:80"
+          environment:
+            - SQLALCHEMY_DATABASE_URI=postgresql://{{ pdns.db_user }}:{{ pdns.db_pass }}@{{ pdns.master_lan_ip }}/{{ pdns.db_name }}
+            - SECRET_KEY={{ pdns.ui_secret }}
+            - GUNICORN_TIMEOUT=180
+            - GUNICORN_WORKERS=4
+            - GUNICORN_LOGLEVEL=INFO
+            - OFFLINE_MODE=False    
+
+  register: output

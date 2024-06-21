@@ -1,0 +1,21 @@
+---
+postgresql_config:
+  listen_addresses: "'*'"
+  max_connections: 250
+  wal_buffers: 16MB
+  default_statistics_target: 300
+  random_page_cost: 1.1
+  effective_io_concurrency: 200
+  min_wal_size: 1GB
+  max_wal_size: 2GB
+  max_parallel_workers_per_gather: 2
+  max_standby_archive_delay: "'20min'"
+  max_standby_streaming_delay: "'20min'"
+  track_activity_query_size: '2048'
+  track_io_timing: 'on'
+  
+  wal_level: replica
+  max_wal_senders: 4
+  max_replication_slots: 4
+  hot_standby: on
+  hot_standby_feedback: on

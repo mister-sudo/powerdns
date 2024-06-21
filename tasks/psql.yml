@@ -1,0 +1,144 @@
+---
+
+- name: Add GPG apt key
+  become: true
+  apt_key:
+    url: '{{ postgresql_apt_key_url }}'
+    state: present
+
+- name: Add apt repository
+  become: true
+  apt_repository:
+    repo: '{{ postgresql_apt_repository }}'
+    state: present
+
+- name: Install required packages (Postgres {{ postgresql_version }})
+  become: true
+  apt: name='{{ item }}-{{ postgresql_version }}' state=latest
+  loop:
+    - postgresql
+    - postgresql-client
+    - postgresql-contrib
+
+- name: Install required packages
+  become: true
+  apt: name='{{ item }}' state=latest
+  loop:
+    - acl
+    - libpq-dev
+    - python3-pip
+
+- name: Install required Python packages
+  become: true
+  pip: name='{{ item }}' state=latest
+  loop:
+    - psycopg2==2.9.9
+
+- name: Check that the postgresql.base.conf exists
+  stat:
+    path: '{{ postgresql_confdir }}/postgresql.base.conf'
+  register: base_conf_result
+
+- set_fact:
+    postgresql_config_file_path: "{{ postgresql_confdir }}/{{ base_conf_result.stat.exists | ternary('postgresql.base.conf', 'postgresql.conf') }}"
+
+- name: Set config options in {{ postgresql_config_file_path }}
+  lineinfile:
+    dest: '{{ postgresql_config_file_path }}'
+    regexp: '^{{ item.key }} '
+    line: "{{ item.key }} = {{ item.value }}"
+    state: present
+  loop: '{{ postgresql_config|dict2items }}'
+  notify: Restart postgresql service
+
+- meta: flush_handlers
+
+- name: Set access rules to PostgreSql
+  postgresql_pg_hba:
+    dest: '{{ postgresql_confdir }}/pg_hba.conf'
+    contype: '{{ item.type }}'
+    users: '{{ item.user }}'
+    source: '{{ item.address | default(None, true) }}'
+    databases: '{{ item.database }}'
+    method: '{{ item.method }}'
+    state: present
+  loop: '{{ postgresql_hba_records | default([]) }}'
+  notify: Reload postgresql service
+
+- meta: flush_handlers
+
+- name: Install additional packages (Postgres {{ postgresql_version }})
+  become: true
+  apt: name='{{ item }}' state=latest
+  loop: '{{ postgresql_additional_packages | default([]) }}'
+
+- name: Tasks for master only
+  block:
+
+    - name: Start service postgresql for master
+      ansible.builtin.service:
+        name: postgresql
+        state: started
+        enabled: yes
+
+    - name: Set postgres user master password
+      become: true
+      become_user: postgres
+      postgresql_user:
+        name: 'postgres'
+        password: '{{ postgresql_password }}'
+
+    - name: Create DB-user for application
+      become_user: postgres
+      postgresql_user:
+        db: 'postgres'
+        name: '{{ item.owner_name }}'
+        password: '{{ item.owner_password }}'
+      loop: '{{ postgresql_databases | default([]) }}'
+
+    - name: Create database for application
+      become: true
+      become_user: postgres
+      postgresql_db:
+        name: '{{ item.name }}'
+        owner: '{{ item.owner_name }}'
+        encoding: '{{ item.encoding }}'
+        template: template0
+      loop: '{{ postgresql_databases | default([]) }}'
+
+    - name: Install extensions
+      become: true
+      become_user: postgres
+      postgresql_ext:
+        name: '{{ item.name }}'
+        db: '{{ item.database }}'
+        cascade: '{{ item.cascade }}'
+        state: present
+      loop: '{{ postgresql_extensions }}'
+
+  when: ansible_host == 'powerdns-master-01'
+
+- name: Tasks for replica only
+  block:
+
+    - name: Deleting standard data after installation from a replica
+      ansible.builtin.shell: systemctl stop postgresql && rm -rf /var/lib/postgresql/{{ postgresql_version }}/main/ && touch rm_repl_data
+      args:
+        creates: rm_repl_data
+
+    - name: Add replica to master (Wait a few minutes)
+      become_user: postgres
+      ansible.builtin.shell: |
+        export PGPASSWORD={{ postgresql_password }} ; \
+        pg_basebackup -R -h {{ pdns.master_lan_ip }} -U postgres -D /var/lib/postgresql/{{ postgresql_version }}/main/ -P ; \
+        touch ~/run_repl
+      args:
+        creates: ~/run_repl
+
+    - name: Start service postgresql for replica
+      ansible.builtin.service:
+        name: postgresql
+        state: started
+        enabled: yes
+
+  when: ansible_host != 'powerdns-master-01'
