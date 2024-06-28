@@ -116,7 +116,7 @@
         state: present
       loop: '{{ postgresql_extensions }}'
 
-  when: ansible_host == 'powerdns-master-01'
+  when: ansible_hostname == 'powerdns-master-01'
 
 - name: Tasks for replica only
   block:
@@ -141,4 +141,4 @@
         state: started
         enabled: yes
 
-  when: ansible_host != 'powerdns-master-01'
+  when: ansible_hostname != 'powerdns-master-01'
