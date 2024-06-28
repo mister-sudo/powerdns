@@ -45,7 +45,7 @@
             - "9191:80"
           environment:
             - SQLALCHEMY_DATABASE_URI=postgresql://{{ pdns.db_user }}:{{ pdns.db_pass }}@{{ pdns.master_lan_ip }}/{{ pdns.db_name }}
-            - SECRET_KEY={{ pdns.ui_secret }}
+            - SECRET_KEY={{ pdns.api_key }}
             - GUNICORN_TIMEOUT=180
             - GUNICORN_WORKERS=4
             - GUNICORN_LOGLEVEL=INFO

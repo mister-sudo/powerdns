@@ -52,7 +52,10 @@ pdns:
   db_name: pdns
   db_user: pdnsadmin
   db_pass: ''
-  ui_secret: ''
   master_lan_ip: ''
   api_key: ''
   forward_zone: ''
+
+resolv_conf_master:
+  nameserver1: 77.88.8.8
+  nameserver2: 77.88.4.4
